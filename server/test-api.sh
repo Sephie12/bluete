@@ -11,7 +11,7 @@ check() { if [ "$2" = "$3" ]; then ok "$1"; else fail "$1: erwartet '$3', erhalt
 JAR=$(mktemp)
 # Konto über das normale Bloom-Formular anlegen
 curl -s -o /dev/null -c "$JAR" -X POST "$B/register" \
-  --data-urlencode "name=Test" --data-urlencode "email=test@example.com" \
+  --data-urlencode "storage_mode=cloud" --data-urlencode "name=Test" --data-urlencode "email=test@example.com" \
   --data-urlencode "password=geheim1234" --data-urlencode "confirm=geheim1234"
 
 check "ping" "$(curl -s "$B/api/v1/ping" | jq -r .api_version)" "1"
