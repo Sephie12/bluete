@@ -5,7 +5,7 @@ set -euo pipefail
 B="${1:-http://localhost:8099}"
 FEHLER=0
 ok()   { echo "OK    $1"; }
-fail() { echo "FEHLER $1"; FEHLER=$((FEHLER+1)); }
+fail() { echo "FEHLER $1"; echo "::error::$1"; FEHLER=$((FEHLER+1)); }
 check() { if [ "$2" = "$3" ]; then ok "$1"; else fail "$1: erwartet '$3', erhalten '$2'"; fi; }
 
 JAR=$(mktemp)

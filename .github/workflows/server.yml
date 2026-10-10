@@ -22,11 +22,14 @@ jobs:
       - name: Bauen und prüfen
         run: |
           cd bloom
-          go vet ./... || true
-          CGO_ENABLED=0 go build -o bloom .
+          if ! CGO_ENABLED=0 go build -o bloom . 2> $RUNNER_TEMP/build.txt; then
+            while IFS= read -r line; do echo "::error::$line"; done < $RUNNER_TEMP/build.txt
+            exit 1
+          fi
+          go vet . 2> $RUNNER_TEMP/vet.txt || while IFS= read -r line; do echo "::warning::$line"; done < $RUNNER_TEMP/vet.txt
           DB_PATH=$RUNNER_TEMP/test.db PORT=8099 ./bloom > $RUNNER_TEMP/bloom.log 2>&1 &
           for i in $(seq 1 30); do curl -s localhost:8099/api/v1/ping && break; sleep 1; done
           cd .. && bash server/test-api.sh http://localhost:8099
       - name: Server-Log
-        if: always()
-        run: cat $RUNNER_TEMP/bloom.log || true
+        if: failure()
+        run: tail -n 8 $RUNNER_TEMP/bloom.log | while IFS= read -r line; do echo "::warning::$line"; done
