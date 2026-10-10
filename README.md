@@ -1,20 +1,23 @@
 # Blüte 🌸
 
-Private Zyklus-App für Android, nach dem Vorbild von Bloom. Nur für den Eigenbedarf.
+Private Android-App für Bloom auf dem eigenen Server. Nur für den Eigenbedarf.
+
+Die Daten liegen in Bloom auf dem Server (und sind dort mitgesichert). Die App liest und
+schreibt sie über eine kleine Schnittstelle, die in Bloom eingebaut wird (`server/api.go`).
+Bloom im Browser zeigt dieselben Daten. Die App merkt sich nur den zuletzt geladenen Stand,
+damit Kalender und Vorhersagen auch ohne Heimnetz sichtbar bleiben.
 
 - Kalender mit Periode, erwarteter Periode, fruchtbarem Fenster und Eisprung
 - Eisprung selbst eintragen (Wärmegefühl, Ovulationstest, Mittelschmerz, Sonstiges)
 - Zervixschleim und die Bloom-Symptome (auf Deutsch) mit Stärke 1–5, eigene Symptome
 - Dashboard mit Phase, Vorhersagen, Hinweisen und Tipps
 - Statistik: Zykluslängen, Verlauf, häufigste Symptome, Symptome nach Phase
-- Import des Bloom-JSON-Exports, eigene Sicherung als JSON
-- Hell/Dunkel in den Farben der pinken Bloom-Blume
-- Keine Internet-Berechtigung, keine Google-Backups, optionale App-Sperre
+- Hell/Dunkel in den Farben der pinken Bloom-Blume, optionale App-Sperre
 
 ## Vorhersage
 
 Die Logik steht in `app/src/main/java/de/sephie/bluete/domain/CycleEngine.kt` und ist mit
-Tests in `app/src/test/...` abgesichert.
+Tests in `app/src/test/...` abgesichert. Bloom selbst rechnet immer „Zykluslänge − 14“.
 
 - Zykluslänge: gewichteter Mittelwert der letzten 8 Zyklen, neuere zählen mehr, Ausreißer nur 20 %.
 - Lutealphase (Eisprung bis Periode): aus deinen Eisprung-Einträgen gelernt, ohne Einträge 14 Tage.
@@ -25,26 +28,12 @@ Tests in `app/src/test/...` abgesichert.
 
 Vorhersagen sind Schätzungen und kein Verhütungsmittel.
 
-## APK bauen
+## Server: Schnittstelle in Bloom einbauen
 
-### Weg A: GitHub Actions (kein Programm nötig)
-1. Privates Repository auf GitHub anlegen und diesen Ordner hochladen.
-2. Unter **Actions** läuft „APK bauen“ automatisch (oder per „Run workflow“).
-3. Nach ca. 5 Minuten im Lauf unter **Artifacts** `bluete-apk` herunterladen und entpacken.
+Siehe [`server/README.md`](server/README.md).
 
-### Weg B: Docker auf dem Heimserver
-Im Projektordner:
+## App
 
-```
-docker run --rm -v "$PWD":/project -w /project mingc/android-build-box \
-  bash -c "chmod +x gradlew && ./gradlew assembleRelease"
-```
-
-Die APK liegt danach unter `app/build/outputs/apk/release/app-release.apk`.
-
-### Installieren
-APK aufs Tablet kopieren, antippen und „Aus dieser Quelle installieren“ erlauben.
-
-Updates werden mit demselben Schlüssel (`app/bluete.keystore`) signiert und lassen sich
-deshalb einfach drüberinstallieren, ohne dass Daten verloren gehen. Das Repository sollte
-daher privat bleiben.
+Jeder Push auf `main` baut die APK und veröffentlicht sie unter **Releases**.
+Auf dem Tablet herunterladen und antippen. Updates lassen sich drüberinstallieren, weil sie
+mit demselben Schlüssel (`app/bluete.keystore`) signiert sind. Das Repository daher privat halten.

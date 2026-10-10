@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.sephie.bluete.domain.Mucus
 import de.sephie.bluete.domain.OvulationSign
 import de.sephie.bluete.domain.SymptomCatalog
@@ -65,6 +66,7 @@ fun DayEditor(
     }
     var newName by remember { mutableStateOf("") }
     var newCategory by remember { mutableStateOf(SymptomCategory.KOERPER) }
+    val busy by vm.busy.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -72,9 +74,8 @@ fun DayEditor(
                 navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Filled.Close, "Schließen") } },
                 title = { Text(date.long()) },
                 actions = {
-                    TextButton(onClick = {
-                        vm.saveDay(date, signs.filterValues { it }.keys, mucus, selected.toMap())
-                        onClose()
+                    TextButton(enabled = !busy, onClick = {
+                        vm.saveDay(date, signs.filterValues { it }.keys, mucus, selected.toMap(), onClose)
                     }) { Text("Speichern", fontWeight = FontWeight.SemiBold) }
                 }
             )
@@ -112,7 +113,7 @@ fun DayEditor(
                         }
                     }
                     Text(
-                        "Änderungen an der Periode werden sofort übernommen.",
+                        "Änderungen an der Periode werden sofort an Bloom gesendet.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -244,12 +245,12 @@ fun DayEditor(
                 }
 
                 Button(
+                    enabled = !busy,
                     onClick = {
-                        vm.saveDay(date, signs.filterValues { it }.keys, mucus, selected.toMap())
-                        onClose()
+                        vm.saveDay(date, signs.filterValues { it }.keys, mucus, selected.toMap(), onClose)
                     },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Speichern") }
+                ) { Text(if (busy) "Wird gespeichert …" else "Speichern") }
             }
         }
     }

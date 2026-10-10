@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -34,12 +35,12 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,10 +55,11 @@ import de.sephie.bluete.ui.AppViewModel
 import de.sephie.bluete.ui.CalendarScreen
 import de.sephie.bluete.ui.DashboardScreen
 import de.sephie.bluete.ui.DayEditor
+import de.sephie.bluete.ui.LoginScreen
+import de.sephie.bluete.ui.syncText
 import de.sephie.bluete.ui.SettingsScreen
 import de.sephie.bluete.ui.StatsScreen
 import de.sephie.bluete.ui.theme.BlueteTheme
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 private enum class Tab(val label: String, val icon: ImageVector) {
@@ -104,8 +106,8 @@ class MainActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Datum aktualisieren, falls die App über Nacht offen war
-        androidx.lifecycle.ViewModelProvider(this)[AppViewModel::class.java].refreshToday()
+        // Neu vom Server laden (und Datum aktualisieren, falls die App über Nacht offen war)
+        androidx.lifecycle.ViewModelProvider(this)[AppViewModel::class.java].refresh()
     }
 
     override fun onStop() {
@@ -151,21 +153,51 @@ private fun LockScreen(onUnlock: () -> Unit) {
 @Composable
 private fun AppContent(vm: AppViewModel, lockAvailable: Boolean) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val busy by vm.busy.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf(Tab.UEBERSICHT) }
     var editDay by rememberSaveable { mutableStateOf<String?>(null) }
     val snackbar = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val showMessage: (String) -> Unit = { msg -> scope.launch { snackbar.showSnackbar(msg) } }
 
-    if (!state.loaded) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+    LaunchedEffect(Unit) {
+        vm.messages.collect { snackbar.showSnackbar(it) }
+    }
+
+    if (!state.settings.loggedIn) {
+        LoginScreen(
+            initialServer = state.settings.serverUrl,
+            initialEmail = state.settings.email,
+            busy = busy,
+            notice = state.sync.error,
+            onLogin = vm::login
+        )
+        return
+    }
+
+    if (!state.hasData) {
+        Column(
+            Modifier.fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (state.sync.refreshing || state.sync.error == null) {
+                CircularProgressIndicator()
+                Text("Lade Daten von Bloom …", Modifier.padding(top = 16.dp))
+            } else {
+                Text("🌸", style = MaterialTheme.typography.displayMedium)
+                Text(state.sync.error ?: "", Modifier.padding(vertical = 16.dp))
+                Button(onClick = { vm.refresh() }) { Text("Erneut versuchen") }
+            }
+        }
         return
     }
 
     val day = editDay
     if (day != null) {
         BackHandler { editDay = null }
-        DayEditor(LocalDate.parse(day), state, vm, onClose = { editDay = null })
+        Box(Modifier.fillMaxSize()) {
+            DayEditor(LocalDate.parse(day), state, vm, onClose = { editDay = null })
+            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(16.dp))
+        }
         return
     }
 
@@ -203,15 +235,38 @@ private fun AppContent(vm: AppViewModel, lockAvailable: Boolean) {
                         }
                     }
                 }
-                Box(Modifier.weight(1f).fillMaxSize()) {
-                    when (tab) {
-                        Tab.UEBERSICHT -> DashboardScreen(state, vm, openDay)
-                        Tab.KALENDER -> CalendarScreen(state, openDay)
-                        Tab.STATISTIK -> StatsScreen(state)
-                        Tab.EINSTELLUNGEN -> SettingsScreen(state, vm, lockAvailable, showMessage)
+                Column(Modifier.weight(1f).fillMaxSize()) {
+                    if (!state.sync.online && !state.sync.refreshing) {
+                        OfflineBanner(syncText(state.sync), onRetry = { vm.refresh(showResult = true) })
+                    }
+                    Box(Modifier.weight(1f).fillMaxSize()) {
+                        when (tab) {
+                            Tab.UEBERSICHT -> DashboardScreen(state, vm, openDay)
+                            Tab.KALENDER -> CalendarScreen(state, openDay)
+                            Tab.STATISTIK -> StatsScreen(state)
+                            Tab.EINSTELLUNGEN -> SettingsScreen(state, vm, lockAvailable)
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun OfflineBanner(text: String, onRetry: () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.secondaryContainer) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "$text. Eintragen geht nur mit Verbindung zum Server.",
+                Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            TextButton(onClick = onRetry) { Text("Erneut versuchen") }
         }
     }
 }

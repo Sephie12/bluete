@@ -56,7 +56,7 @@ fun DashboardScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Column {
-                Text("Hallo Sephie 🌸", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+                Text("Hallo ${state.userName.ifBlank { "Sephie" }} 🌸", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
                 Text(state.today.long(), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             val cur = state.current
@@ -84,7 +84,7 @@ fun DashboardScreen(
 @Composable
 private fun EmptyState(state: UiState, onOpenDay: (LocalDate) -> Unit, vm: AppViewModel) {
     InfoCard(title = "Willkommen!") {
-        Text("Trag deine letzte Periode ein, dann berechnet die App alles Weitere. Hat sie an einem anderen Tag begonnen, tippe im Kalender auf diesen Tag. Deine Bloom-Daten kannst du unter Einstellungen importieren.")
+        Text("In Bloom sind noch keine Perioden eingetragen. Trag deine letzte Periode ein, dann berechnet die App alles Weitere. Hat sie an einem anderen Tag begonnen, tippe im Kalender auf diesen Tag.")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { vm.startPeriod(state.today) }) { Text("Periode hat heute begonnen") }
             OutlinedButton(onClick = { onOpenDay(state.today) }) { Text("Heute eintragen") }
@@ -199,7 +199,7 @@ private fun MainColumn(state: UiState, cur: CurrentCycle, vm: AppViewModel, onOp
     state.stats?.let { s ->
         InfoCard(title = "So genau ist die Vorhersage") {
             Text(
-                if (s.usedCycleCount == 0) "Noch keine abgeschlossenen Zyklen – es gilt die Vorgabe von ${state.settings.defaultCycleLength} Tagen."
+                if (s.usedCycleCount == 0) "Noch keine abgeschlossenen Zyklen – es gilt die Vorgabe aus Bloom von ${state.defaultCycleLength} Tagen."
                 else "Grundlage: ${s.usedCycleCount} ${if (s.usedCycleCount == 1) "Zyklus" else "Zyklen"}, Ø ${"%.1f".format(s.cycleLength)} Tage (neuere zählen stärker)."
             )
             Text(

@@ -3,6 +3,7 @@ name: APK bauen
 on:
   push:
     branches: [ main ]
+    paths-ignore: [ 'server/**', '.github/workflows/server.yml', '**.md' ]
   workflow_dispatch:
 
 permissions:
