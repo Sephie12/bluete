@@ -1,0 +1,32 @@
+name: Server-API testen
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'server/**', '.github/workflows/server.yml' ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Bloom holen und API einbauen
+        run: |
+          git clone --depth 1 https://github.com/waldmannly/bloom-tracker.git bloom
+          sh server/einbauen.sh bloom
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: bloom/go.mod
+          cache: false
+      - name: Bauen und prüfen
+        run: |
+          cd bloom
+          go vet ./... || true
+          CGO_ENABLED=0 go build -o bloom .
+          DB_PATH=$RUNNER_TEMP/test.db PORT=8099 ./bloom > $RUNNER_TEMP/bloom.log 2>&1 &
+          for i in $(seq 1 30); do curl -s localhost:8099/api/v1/ping && break; sleep 1; done
+          cd .. && bash server/test-api.sh http://localhost:8099
+      - name: Server-Log
+        if: always()
+        run: cat $RUNNER_TEMP/bloom.log || true
